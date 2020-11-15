@@ -50,9 +50,9 @@ pub struct BlockStat {
 }
 
 impl BlockStat {
-    pub fn new() -> BlockStat {
+    pub fn new(name: &'static str) -> BlockStat {
         BlockStat {
-            name: "",
+            name,
             total_time: Duration::from_millis(0),
             measure_count: 0,
             children: BTreeMap::new(),

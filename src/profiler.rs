@@ -5,7 +5,6 @@ use flume::{
     Sender, Receiver,
 };
 use std::{
-    collections::BTreeMap,
     time::{
         Duration, Instant,
     },
@@ -19,8 +18,8 @@ lazy_static! {
 }
 
 enum ProfilerEvent {
-    BeginMain(Instant),
-    EndMain(Instant),
+    Initialize(Instant),
+    Shutdown(Instant),
     BeginBlock {
         thread_id: ThreadId,
         name: &'static str,
@@ -40,47 +39,29 @@ impl Profiler {
     pub fn process_events(&self, data: &mut ProfilerData) {
         for event in self.events_receiver.try_iter() {
             match event {
-                ProfilerEvent::BeginMain(start_time) => {
-                    data.main_block.name = "ProfilerMainBlock";
-                    data.main_start_time = start_time;
+                ProfilerEvent::Initialize(time) => {
+                    data.main_block_start_time = time;
                 },
-                ProfilerEvent::EndMain(stop_time) => {
-                    data.main_block.total_time = stop_time.duration_since(data.main_start_time);
+                ProfilerEvent::Shutdown(time) => {
+                    data.main_block.total_time = time.duration_since(data.main_block_start_time);
                     data.main_block.measure_count = 1;
                 }
                 ProfilerEvent::BeginBlock { thread_id, name } => {
-                    let thread_id_value = unsafe { *(&thread_id as *const ThreadId as *const usize) };
-
-                    if data.blocks_stack.len() < thread_id_value + 1 {
-                        data.blocks_stack.resize(thread_id_value + 1, Vec::new());
-                    }
-
-                    let thread_blocks_stack = &mut data.blocks_stack[thread_id_value];
-
-                    let block_stat = match thread_blocks_stack.last() {
+                    let block_stat = match data.current_block_on_thread(thread_id).cloned() {
                         Some(top_block_stat) => {
-                            top_block_stat.borrow_mut().children.entry(name).or_insert_with(|| Rc::new(RefCell::new(BlockStat {
-                                name,
-                                total_time: Duration::from_millis(0),
-                                measure_count: 0,
-                                children: BTreeMap::new(),
-                            }))).clone()
-                        }
+                            top_block_stat.borrow_mut().children.entry(name)
+                                .or_insert_with(|| Rc::new(RefCell::new(BlockStat::new(name)))).clone()
+                        },
                         None => {
-                            data.main_block.children.entry(name).or_insert_with(|| Rc::new(RefCell::new(BlockStat {
-                                name,
-                                total_time: Duration::from_millis(0),
-                                measure_count: 0,
-                                children: BTreeMap::new(),
-                            }))).clone()
-                        }
+                            data.main_block.children.entry(name)
+                                .or_insert_with(|| Rc::new(RefCell::new(BlockStat::new(name)))).clone()
+                        },
                     };
-                    
-                    thread_blocks_stack.push(block_stat);
+
+                    data.push_block_to_thread_stack(thread_id, block_stat);
                 },
                 ProfilerEvent::EndBlock { thread_id, time } => {
-                    let thread_id_value = unsafe { *(&thread_id as *const ThreadId as *const usize) };
-                    let thread_current_block = data.blocks_stack[thread_id_value].pop().unwrap();
+                    let thread_current_block = data.pop_block_from_thread_stack(thread_id).unwrap();
                     thread_current_block.borrow_mut().total_time += time;
                     thread_current_block.borrow_mut().measure_count += 1;
                 },
@@ -89,12 +70,14 @@ impl Profiler {
     }
 
     pub fn initialize(&self) -> ProfilerData {
-        self.events_sender.send(ProfilerEvent::BeginMain(Instant::now())).unwrap();
+        self.events_sender.send(ProfilerEvent::Initialize(Instant::now())).unwrap();
+
         ProfilerData::new()
     }
 
     pub fn shutdown(&self, report_path: &str, profiler_data: &mut ProfilerData) {
-        self.events_sender.send(ProfilerEvent::EndMain(Instant::now())).unwrap();
+        self.events_sender.send(ProfilerEvent::Shutdown(Instant::now())).unwrap();
+
         self.process_events(profiler_data);
         std::fs::write(report_path, profiler_data.build_report_string()).unwrap();
     }
