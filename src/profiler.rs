@@ -1,5 +1,5 @@
 use crate::{
-    BlockStat, BlockStatReport, ProfilerData,
+    BlockStat, ProfilerData,
 };
 use flume::{
     Sender, Receiver,
@@ -12,7 +12,6 @@ use std::{
     thread::ThreadId,
     rc::Rc,
     cell::RefCell,
-    sync::Mutex,
 };
 
 lazy_static! {
@@ -20,8 +19,8 @@ lazy_static! {
 }
 
 enum ProfilerEvent {
-    BeginMain,
-    EndMain(Duration),
+    BeginMain(Instant),
+    EndMain(Instant),
     BeginBlock {
         thread_id: ThreadId,
         name: &'static str,
@@ -33,7 +32,6 @@ enum ProfilerEvent {
 }
 
 pub struct Profiler {
-    main_start_time: Mutex<Instant>,
     events_sender: Sender<ProfilerEvent>,
     events_receiver: Receiver<ProfilerEvent>,
 }
@@ -42,11 +40,12 @@ impl Profiler {
     pub fn process_events(&self, data: &mut ProfilerData) {
         for event in self.events_receiver.try_iter() {
             match event {
-                ProfilerEvent::BeginMain => {
+                ProfilerEvent::BeginMain(start_time) => {
                     data.main_block.name = "ProfilerMainBlock";
+                    data.main_start_time = start_time;
                 },
-                ProfilerEvent::EndMain(time) => {
-                    data.main_block.total_time = time;
+                ProfilerEvent::EndMain(stop_time) => {
+                    data.main_block.total_time = stop_time.duration_since(data.main_start_time);
                     data.main_block.measure_count = 1;
                 }
                 ProfilerEvent::BeginBlock { thread_id, name } => {
@@ -90,15 +89,12 @@ impl Profiler {
     }
 
     pub fn initialize(&self) -> ProfilerData {
-        *self.main_start_time.lock().unwrap() = Instant::now();
-        self.events_sender.send(ProfilerEvent::BeginMain).unwrap();
-
+        self.events_sender.send(ProfilerEvent::BeginMain(Instant::now())).unwrap();
         ProfilerData::new()
     }
 
     pub fn shutdown(&self, report_path: &str, profiler_data: &mut ProfilerData) {
-        let time = self.main_start_time.lock().unwrap().elapsed();
-        self.events_sender.send(ProfilerEvent::EndMain(time)).unwrap();
+        self.events_sender.send(ProfilerEvent::EndMain(Instant::now())).unwrap();
         self.process_events(profiler_data);
         std::fs::write(report_path, profiler_data.build_report_string()).unwrap();
     }
@@ -106,7 +102,6 @@ impl Profiler {
     fn new() -> Profiler {
         let (events_sender, events_receiver) = flume::unbounded();
         Profiler {
-            main_start_time: Mutex::new(Instant::now()),
             events_sender,
             events_receiver,
         }

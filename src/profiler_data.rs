@@ -1,5 +1,6 @@
 use crate::BlockStat;
 use std::{
+    time::Instant,
     rc::Rc,
     cell::RefCell,
 };
@@ -33,6 +34,7 @@ const HTML_REPORT_HEADER: &str = r#"<html><body>
 const HTML_REPORT_FOOTER: &str = "</body></html>";
 
 pub struct ProfilerData {
+    pub(crate) main_start_time: Instant,
     pub(crate) main_block: BlockStat,
     pub(crate) blocks_stack: Vec<Vec<Rc<RefCell<BlockStat>>>>,
 }
@@ -40,6 +42,7 @@ pub struct ProfilerData {
 impl ProfilerData {
     pub(crate) fn new() -> ProfilerData {
         ProfilerData {
+            main_start_time: Instant::now(),
             main_block: BlockStat::new(),
             blocks_stack: Vec::new(),
         }
