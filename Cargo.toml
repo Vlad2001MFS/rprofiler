@@ -3,6 +3,11 @@ name = "rprofiler"
 version = "0.1.0"
 authors = ["Vlad2001_MFS <kopytin.vladislav2001@yandex.ru>"]
 edition = "2018"
+license = "MIT"
+description = "A library for simple profiling your code with HTML reports as result"
+repository = "https://github.com/Vlad2001MFS/rprofiler"
+keywords = ["profiler", "profiling", "utility", "library"]
+categories = ["development-tools", "development-tools::profiling"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
