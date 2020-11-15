@@ -44,7 +44,7 @@ pub struct BlockStat {
     pub(crate) name: &'static str,
     pub(crate) total_time: Duration,
     pub(crate) measure_count: u32,
-    pub(crate) children: BTreeMap<&'static str, Box<BlockStat>>,
+    pub(crate) children: BTreeMap<usize, BlockStat>,
 }
 
 impl BlockStat {

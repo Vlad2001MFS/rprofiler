@@ -68,19 +68,21 @@ impl ProfilerData {
     }
 
     #[inline]
-    pub(crate) fn current_block_on_thread(&self, thread_id: ThreadId) -> Option<*mut BlockStat> {
-        let thread_id_value = thread_id_to_usize(thread_id);
-        self.blocks_stack.get(thread_id_value).and_then(|a| a.last().cloned())
-    }
-
-    #[inline]
-    pub(crate) fn push_block_to_thread_stack(&mut self, thread_id: ThreadId, block: *mut BlockStat) {
+    pub(crate) fn current_block_on_thread(&mut self, thread_id: ThreadId) -> Option<*mut BlockStat> {
         let thread_id_value = thread_id_to_usize(thread_id);
 
         if self.blocks_stack.len() < thread_id_value + 1 {
             self.blocks_stack.resize(thread_id_value + 1, Vec::new());
         }
 
+        unsafe {
+            self.blocks_stack.get_unchecked(thread_id_value).last().cloned()
+        }
+    }
+
+    #[inline]
+    pub(crate) fn push_block_to_thread_stack(&mut self, thread_id: ThreadId, block: *mut BlockStat) {
+        let thread_id_value = thread_id_to_usize(thread_id);
         unsafe {
             self.blocks_stack.get_unchecked_mut(thread_id_value).push(block);
         }
@@ -89,6 +91,8 @@ impl ProfilerData {
     #[inline]
     pub(crate) fn pop_block_from_thread_stack(&mut self, thread_id: ThreadId) -> Option<*mut BlockStat> {
         let thread_id_value = thread_id_to_usize(thread_id);
-        self.blocks_stack.get_mut(thread_id_value).and_then(|a| a.pop())
+        unsafe {
+            self.blocks_stack.get_unchecked_mut(thread_id_value).pop()
+        }
     }
 }

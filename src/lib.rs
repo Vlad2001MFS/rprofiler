@@ -32,6 +32,6 @@ macro_rules! profile_block {
         #[cfg(feature = $name)] profile_block!();
     };
     (if_feature $feature_name:literal, name $block_name:literal) => {
-        #[cfg(feature = $feature_name)] profile_block!($block_name);
+        #[cfg(feature = $feature_name)] profile_block!(name $block_name);
     };
 }
