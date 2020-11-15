@@ -1,9 +1,14 @@
 #[macro_use] extern crate lazy_static;
 extern crate flume;
 
-mod profiler;
+pub use profiler::{ Profiler, PROFILER, ProfilerBlockGuard };
 
-pub use profiler::*;
+mod profiler;
+mod block_stat;
+mod profiler_data;
+
+use block_stat::*;
+use profiler_data::*;
 
 #[macro_export]
 macro_rules! profile_block {

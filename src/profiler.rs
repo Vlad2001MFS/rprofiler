@@ -1,3 +1,6 @@
+use crate::{
+    BlockStat, BlockStatReport, ProfilerData,
+};
 use flume::{
     Sender, Receiver,
 };
@@ -11,153 +14,6 @@ use std::{
     cell::RefCell,
     sync::Mutex,
 };
-
-struct BlockStatReport {
-    name: String,
-    avg_time: Duration,
-    global_percents: f32,
-    relative_parent_percents: f32,
-    children: Vec<BlockStatReport>,
-}
-
-impl BlockStatReport {
-    fn build_string(&mut self, report: &mut String, depth: usize, max_name_len: usize) {
-        let name = self.name.replace("<", "&lt;").replace(">", "&gt;");
-
-        *report += &format!(
-            concat!(
-                "<tr>",
-                "<td style=\"padding-left: {}\">{}</td>",
-                "<td>{:6.2} %</td>",
-                "<td>{:6.2} %</td>",
-                "<td>{:9.4} ms</td>",
-                "</tr>\n"
-            ),
-            depth*25, name, self.global_percents, self.relative_parent_percents, self.avg_time.as_secs_f32()*1000.0
-        );
-
-        self.children.sort_by(|a, b| b.relative_parent_percents.partial_cmp(&a.relative_parent_percents).unwrap());
-
-        for child in self.children.iter_mut() {
-            child.build_string(report, depth + 1, max_name_len);
-        }
-    }
-}
-
-struct BlockStat {
-    name: &'static str,
-    total_time: Duration,
-    measure_count: u32,
-    children: BTreeMap<&'static str, Rc<RefCell<BlockStat>>>,
-}
-
-impl BlockStat {
-    fn build_report(&self, total_global_time: Duration, avg_global_time: Duration, total_parent_time: Duration, avg_parent_time: Duration) -> BlockStatReport {
-        let avg_time = self.total_time / self.measure_count;
-
-        BlockStatReport {
-            name: {
-                let mut name = String::with_capacity(self.name.len());
-                let mut name_parts_iter = self.name.split("::");
-                while let Some(first_name_part) = name_parts_iter.next() {
-                    match name_parts_iter.clone().next() {
-                        Some(second_name_part) => {
-                            let first_name_part_simplified = first_name_part.to_lowercase().replace("_", "");
-                            let second_name_part_simplified = second_name_part.to_lowercase().replace("_", "");
-
-                            match first_name_part_simplified == second_name_part_simplified {
-                                true => {
-                                    name += "::";
-                                    name += second_name_part;
-                                    name_parts_iter.next();
-                                }
-                                false => {
-                                    name += "::";
-                                    name += first_name_part;
-                                }
-                            }
-                        }
-                        None => {
-                            name += "::";
-                            name += first_name_part;
-                        }
-                    }
-                }
-
-                name.strip_prefix("::").map(|a| a.to_owned()).unwrap_or(name)
-            },
-            avg_time,
-            global_percents: (self.total_time.as_secs_f32() / total_global_time.as_secs_f32())*100.0,
-            relative_parent_percents: (self.total_time.as_secs_f32() / total_parent_time.as_secs_f32())*100.0,
-            children: {
-                let total_parent_time: Duration = self.total_time;
-                let avg_parent_time: Duration = avg_time;
-                self.children.iter().map(|(_, stat)|
-                    stat.borrow().build_report(total_global_time, avg_global_time, total_parent_time, avg_parent_time)
-                ).collect()
-            },
-        }
-    }
-}
-
-pub struct ProfilerData {
-    main_block: BlockStat,
-    blocks_stack: Vec<Vec<Rc<RefCell<BlockStat>>>>,
-}
-
-impl ProfilerData {
-    fn new() -> ProfilerData {
-        ProfilerData {
-            main_block: BlockStat {
-                name: "",
-                total_time: Duration::from_millis(0),
-                measure_count: 0,
-                children: BTreeMap::new(),
-            },
-            blocks_stack: Vec::new(),
-        }
-    }
-
-    fn build_report_string(&self) -> String {
-        let mut report = String::with_capacity(8192);
-        report += r#"<html><body>
-<title>Profile report</title>
-
-<style>
-    body {
-        color: #111;
-        font-family: Noto Mono;
-    }
-    tr:nth-child(even) {
-        background: #efeeef;
-    }
-    tr:nth-child(odd) {
-        background: #fff;
-    }
-    td:nth-child(1) {
-        font-weight: bold;
-        text-align: left;
-    }
-    td:nth-child(n+2) {
-        text-align: right;
-    }
-</style>
-
-<h1>Functions statistics</h1>
-"#;
-
-        report += "<table>\n";
-        report += "<thead><th>Block name</th><th>Global percents</th><th>Relative to parent percents</th><th>Average time</th></thead>\n";
-
-        let total_main_time = self.main_block.total_time;
-        self.main_block.build_report(total_main_time, total_main_time, total_main_time, total_main_time).build_string(&mut report, 0, 0);
-
-        report += "</table>\n";
-
-        report += "</body></html>";
-        report
-    }
-}
 
 lazy_static! {
     pub static ref PROFILER: Profiler = Profiler::new();
@@ -187,7 +43,7 @@ impl Profiler {
         for event in self.events_receiver.try_iter() {
             match event {
                 ProfilerEvent::BeginMain => {
-                    data.main_block.name = "rengine::run";
+                    data.main_block.name = "ProfilerMainBlock";
                 },
                 ProfilerEvent::EndMain(time) => {
                     data.main_block.total_time = time;
