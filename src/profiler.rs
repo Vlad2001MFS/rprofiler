@@ -9,8 +9,6 @@ use std::{
         Duration, Instant,
     },
     thread::ThreadId,
-    rc::Rc,
-    cell::RefCell,
 };
 
 lazy_static! {
@@ -37,6 +35,8 @@ pub struct Profiler {
 
 impl Profiler {
     pub fn process_events(&self, data: &mut ProfilerData) {
+        crate::profile_block!();
+
         for event in self.events_receiver.try_iter() {
             match event {
                 ProfilerEvent::Initialize(time) => {
@@ -47,14 +47,15 @@ impl Profiler {
                     data.main_block.measure_count = 1;
                 }
                 ProfilerEvent::BeginBlock { thread_id, name } => {
-                    let block_stat = match data.current_block_on_thread(thread_id).cloned() {
+                    let block_stat = match data.current_block_on_thread(thread_id) {
                         Some(top_block_stat) => {
-                            top_block_stat.borrow_mut().children.entry(name)
-                                .or_insert_with(|| Rc::new(RefCell::new(BlockStat::new(name)))).clone()
+                            let top_block_stat = unsafe { &mut *top_block_stat };
+                            let block_stat = top_block_stat.children.entry(name).or_insert_with(|| Box::new(BlockStat::new(name)));
+                            block_stat.as_mut() as *mut _
                         },
                         None => {
-                            data.main_block.children.entry(name)
-                                .or_insert_with(|| Rc::new(RefCell::new(BlockStat::new(name)))).clone()
+                            let block_stat = data.main_block.children.entry(name).or_insert_with(|| Box::new(BlockStat::new(name)));
+                            block_stat.as_mut() as *mut _
                         },
                     };
 
@@ -62,8 +63,9 @@ impl Profiler {
                 },
                 ProfilerEvent::EndBlock { thread_id, time } => {
                     let thread_current_block = data.pop_block_from_thread_stack(thread_id).unwrap();
-                    thread_current_block.borrow_mut().total_time += time;
-                    thread_current_block.borrow_mut().measure_count += 1;
+                    let thread_current_block = unsafe { &mut *thread_current_block };
+                    thread_current_block.total_time += time;
+                    thread_current_block.measure_count += 1;
                 },
             }
         }

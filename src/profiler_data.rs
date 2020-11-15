@@ -1,8 +1,6 @@
 use crate::BlockStat;
 use std::{
     time::Instant,
-    rc::Rc,
-    cell::RefCell,
     thread::ThreadId,
 };
 
@@ -42,7 +40,7 @@ fn thread_id_to_usize(thread_id: ThreadId) -> usize {
 pub struct ProfilerData {
     pub(crate) main_block_start_time: Instant,
     pub(crate) main_block: BlockStat,
-    pub(crate) blocks_stack: Vec<Vec<Rc<RefCell<BlockStat>>>>,
+    pub(crate) blocks_stack: Vec<Vec<*mut BlockStat>>,
 }
 
 impl ProfilerData {
@@ -70,24 +68,26 @@ impl ProfilerData {
     }
 
     #[inline]
-    pub(crate) fn current_block_on_thread(&self, thread_id: ThreadId) -> Option<&Rc<RefCell<BlockStat>>> {
+    pub(crate) fn current_block_on_thread(&self, thread_id: ThreadId) -> Option<*mut BlockStat> {
         let thread_id_value = thread_id_to_usize(thread_id);
-        self.blocks_stack.get(thread_id_value).and_then(|a| a.last())
+        self.blocks_stack.get(thread_id_value).and_then(|a| a.last().cloned())
     }
 
     #[inline]
-    pub(crate) fn push_block_to_thread_stack(&mut self, thread_id: ThreadId, block: Rc<RefCell<BlockStat>>) {
+    pub(crate) fn push_block_to_thread_stack(&mut self, thread_id: ThreadId, block: *mut BlockStat) {
         let thread_id_value = thread_id_to_usize(thread_id);
 
         if self.blocks_stack.len() < thread_id_value + 1 {
             self.blocks_stack.resize(thread_id_value + 1, Vec::new());
         }
 
-        self.blocks_stack[thread_id_value].push(block);
+        unsafe {
+            self.blocks_stack.get_unchecked_mut(thread_id_value).push(block);
+        }
     }
 
     #[inline]
-    pub(crate) fn pop_block_from_thread_stack(&mut self, thread_id: ThreadId) -> Option<Rc<RefCell<BlockStat>>> {
+    pub(crate) fn pop_block_from_thread_stack(&mut self, thread_id: ThreadId) -> Option<*mut BlockStat> {
         let thread_id_value = thread_id_to_usize(thread_id);
         self.blocks_stack.get_mut(thread_id_value).and_then(|a| a.pop())
     }

@@ -1,8 +1,6 @@
 use std::{
     time::Duration,
     collections::BTreeMap,
-    rc::Rc,
-    cell::RefCell,
 };
 
 pub struct BlockStatReport {
@@ -46,7 +44,7 @@ pub struct BlockStat {
     pub(crate) name: &'static str,
     pub(crate) total_time: Duration,
     pub(crate) measure_count: u32,
-    pub(crate) children: BTreeMap<&'static str, Rc<RefCell<BlockStat>>>,
+    pub(crate) children: BTreeMap<&'static str, Box<BlockStat>>,
 }
 
 impl BlockStat {
@@ -104,7 +102,7 @@ impl BlockStat {
                 let total_parent_time: Duration = self.total_time;
                 let avg_parent_time: Duration = avg_time;
                 self.children.iter().map(|(_, stat)|
-                    stat.borrow().build_report_recurse(total_global_time, avg_global_time, total_parent_time, avg_parent_time)
+                    stat.build_report_recurse(total_global_time, avg_global_time, total_parent_time, avg_parent_time)
                 ).collect()
             },
         }
