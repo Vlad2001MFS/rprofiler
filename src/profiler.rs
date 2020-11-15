@@ -1,7 +1,6 @@
 use flume::{
     Sender, Receiver,
 };
-
 use std::{
     collections::BTreeMap,
     time::{
@@ -107,7 +106,7 @@ pub struct ProfilerData {
 }
 
 impl ProfilerData {
-    pub fn new() -> ProfilerData {
+    fn new() -> ProfilerData {
         ProfilerData {
             main_block: BlockStat {
                 name: "",
@@ -117,10 +116,6 @@ impl ProfilerData {
             },
             blocks_stack: Vec::new(),
         }
-    }
-
-    pub fn save_to_file(&self) {
-        std::fs::write("./profile_info.html", self.build_report_string()).unwrap();
     }
 
     fn build_report_string(&self) -> String {
@@ -189,8 +184,6 @@ pub struct Profiler {
 
 impl Profiler {
     pub fn process_events(&self, data: &mut ProfilerData) {
-        profile_block!();
-
         for event in self.events_receiver.try_iter() {
             match event {
                 ProfilerEvent::BeginMain => {
@@ -240,14 +233,18 @@ impl Profiler {
         }
     }
 
-    pub fn begin_main(&self) {
+    pub fn initialize(&self) -> ProfilerData {
         *self.main_start_time.lock().unwrap() = Instant::now();
         self.events_sender.send(ProfilerEvent::BeginMain).unwrap();
+
+        ProfilerData::new()
     }
 
-    pub fn end_main(&self) {
+    pub fn shutdown(&self, report_path: &str, profiler_data: &mut ProfilerData) {
         let time = self.main_start_time.lock().unwrap().elapsed();
         self.events_sender.send(ProfilerEvent::EndMain(time)).unwrap();
+        self.process_events(profiler_data);
+        std::fs::write(report_path, profiler_data.build_report_string()).unwrap();
     }
 
     fn new() -> Profiler {
