@@ -61,8 +61,11 @@ impl BlockStat {
         self.build_report_recurse(self.total_time, self.total_time, self.total_time, self.total_time)
     }
 
-    fn build_report_recurse(&self, total_global_time: Duration, avg_global_time: Duration, total_parent_time: Duration, avg_parent_time: Duration) -> BlockStatReport {
-        let avg_time = self.total_time / self.measure_count;
+    fn build_report_recurse(&self, total_global_time: Duration, avg_global_time: Duration, total_parent_time: Duration, _avg_parent_time: Duration) -> BlockStatReport {
+        let avg_time = match self.measure_count > 0 {
+            true => self.total_time / self.measure_count,
+            false => self.total_time,
+        };
 
         BlockStatReport {
             name: {
