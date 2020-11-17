@@ -1,6 +1,6 @@
 [package]
 name = "rprofiler"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Vlad2001_MFS <kopytin.vladislav2001@yandex.ru>"]
 edition = "2018"
 license = "MIT"

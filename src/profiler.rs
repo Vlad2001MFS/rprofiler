@@ -51,12 +51,12 @@ impl Profiler {
                     let block_stat = match data.current_block_on_thread(thread_id) {
                         Some(top_block_stat) => {
                             let top_block_stat = unsafe { &mut *top_block_stat };
-                            let block_stat = top_block_stat.children.entry(name_hash).or_insert_with(|| BlockStat::new(name));
-                            block_stat as *mut _
+                            let block_stat = top_block_stat.children.entry(name_hash).or_insert_with(|| Box::new(BlockStat::new(name)));
+                            block_stat.as_mut() as *mut _
                         },
                         None => {
-                            let block_stat = data.main_block.children.entry(name_hash).or_insert_with(|| BlockStat::new(name));
-                            block_stat as *mut _
+                            let block_stat = data.main_block.children.entry(name_hash).or_insert_with(|| Box::new(BlockStat::new(name)));
+                            block_stat.as_mut() as *mut _
                         },
                     };
 
