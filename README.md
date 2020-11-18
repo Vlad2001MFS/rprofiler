@@ -18,6 +18,18 @@ As example, this method can be called at end of each game frame.
 At end of profiling you should call the `rprofiler::PROFILER.shutdown(...)` method.
 It will process all gathered information and save result as HTML document into specified file.
 
+You can disable all profiling at compile-time by enabling a feature *"disable_profiling"* in *Cargo.toml* of your project.
+```toml
+[package]
+name = "game"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies.rprofiler]
+version = "0.2"
+features = ["disable_profiling"]
+```
+
 # Examples
 ```
 fn factorial(value: i32) -> i32 {

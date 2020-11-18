@@ -15,6 +15,7 @@ lazy_static! {
     pub static ref PROFILER: Profiler = Profiler::new();
 }
 
+#[cfg(not(feature = "disable_profiling"))]
 enum ProfilerEvent {
     Initialize(Instant),
     Shutdown(Instant),
@@ -28,11 +29,16 @@ enum ProfilerEvent {
     },
 }
 
+#[cfg(not(feature = "disable_profiling"))]
 pub struct Profiler {
     events_sender: Sender<ProfilerEvent>,
     events_receiver: Receiver<ProfilerEvent>,
 }
 
+#[cfg(feature = "disable_profiling")]
+pub struct Profiler;
+
+#[cfg(not(feature = "disable_profiling"))]
 impl Profiler {
     pub fn process_events(&self, data: &mut ProfilerData) {
         crate::profile_block!();
@@ -110,10 +116,44 @@ impl Profiler {
     }
 }
 
+#[cfg(feature = "disable_profiling")]
+impl Profiler {
+    pub fn process_events(&self, _data: &mut ProfilerData) {}
+
+    pub fn initialize(&self) -> ProfilerData {
+        ProfilerData::new()
+    }
+
+    pub fn shutdown(&self, _report_path: &str, _profiler_data: &mut ProfilerData) {}
+
+    fn new() -> Profiler {
+        Profiler
+    }
+
+    #[inline]
+    fn begin_block(&self, _name: &'static str) {}
+
+    #[inline]
+    fn end_block(&self, _time: Duration) {}
+}
+
+#[cfg(not(feature = "disable_profiling"))]
 pub struct ProfilerBlockGuard {
     start_time: Instant,
 }
 
+#[cfg(feature = "disable_profiling")]
+pub struct ProfilerBlockGuard;
+
+#[cfg(feature = "disable_profiling")]
+impl ProfilerBlockGuard {
+    #[inline]
+    pub fn new(_block_name: &'static str) -> ProfilerBlockGuard {
+        ProfilerBlockGuard
+    }
+}
+
+#[cfg(not(feature = "disable_profiling"))]
 impl ProfilerBlockGuard {
     #[inline]
     pub fn new(block_name: &'static str) -> ProfilerBlockGuard {
@@ -125,6 +165,7 @@ impl ProfilerBlockGuard {
     }
 }
 
+#[cfg(not(feature = "disable_profiling"))]
 impl Drop for ProfilerBlockGuard {
     #[inline]
     fn drop(&mut self) {

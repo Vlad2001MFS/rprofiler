@@ -18,6 +18,18 @@
 //! At end of profiling you should call the `rprofiler::PROFILER.shutdown(...)` method.
 //! It will process all gathered information and save result as HTML document into specified file.
 //!
+//! You can disable all profiling at compile-time by enabling a feature *"disable_profiling"* in *Cargo.toml* of your project.
+//! ```toml
+//! [package]
+//! name = "game"
+//! version = "0.1.0"
+//! edition = "2018"
+//!
+//! [dependencies.rprofiler]
+//! version = "0.2"
+//! features = ["disable_profiling"]
+//! ```
+//!
 //! # Examples
 //! ```
 //! fn factorial(value: i32) -> i32 {
@@ -58,6 +70,7 @@ mod profiler_data;
 use block_stat::*;
 use profiler_data::*;
 
+#[cfg(not(feature = "disable_profiling"))]
 #[macro_export]
 macro_rules! profile_block {
     () => {
@@ -82,4 +95,13 @@ macro_rules! profile_block {
     (if_feature $feature_name:literal, name $block_name:literal) => {
         #[cfg(feature = $feature_name)] profile_block!(name $block_name);
     };
+}
+
+#[cfg(feature = "disable_profiling")]
+#[macro_export]
+macro_rules! profile_block {
+    () => {};
+    (name $block_name:literal) => {};
+    (if_feature $name:literal) => {};
+    (if_feature $feature_name:literal, name $block_name:literal) => {};
 }
