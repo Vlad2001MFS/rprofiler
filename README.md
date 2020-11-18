@@ -4,7 +4,7 @@ A library for simple profiling your code with HTML reports as result.
 At first the rprofiler must be initialized by the call `rprofiler::PROFILER.initialize()` method.
 This method is returned an object of ProfilerData struct, where will be gathering all runtime information.
 Then you can use special `profile_block` macro for profiling blocks of your code. It has some syntax variations:
-```
+```rust
 profile_block!();
 profile_block!(name "name of code block");
 // Conditional profiling
@@ -31,7 +31,7 @@ features = ["disable_profiling"]
 ```
 
 # Examples
-```
+```rust
 fn factorial(value: i32) -> i32 {
     match value > 1 {
         true => value*factorial(value - 1),
