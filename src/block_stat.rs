@@ -61,6 +61,15 @@ impl BlockStat {
         self.build_report_recurse(self.total_time, self.total_time, self.total_time, self.total_time)
     }
 
+    pub fn reset_stats(&mut self) {
+        self.total_time = Duration::from_millis(0);
+        self.measure_count = 0;
+
+        for (_, child) in self.children.iter_mut() {
+            child.reset_stats();
+        }
+    }
+
     fn build_report_recurse(&self, total_global_time: Duration, avg_global_time: Duration, total_parent_time: Duration, _avg_parent_time: Duration) -> BlockStatReport {
         let avg_time = match self.measure_count > 0 {
             true => self.total_time / self.measure_count,

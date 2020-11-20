@@ -19,6 +19,7 @@ lazy_static! {
 enum ProfilerEvent {
     Initialize(Instant),
     Shutdown(Instant),
+    ResetStats,
     BeginBlock {
         thread_id: ThreadId,
         name: &'static str,
@@ -52,6 +53,7 @@ impl Profiler {
                     data.main_block.total_time = time.duration_since(data.main_block_start_time);
                     data.main_block.measure_count = 1;
                 }
+                ProfilerEvent::ResetStats => data.reset_stats(),
                 ProfilerEvent::BeginBlock { thread_id, name } => {
                     let name_hash = (name as *const str as *const u8) as usize;
                     let block_stat = match data.current_block_on_thread(thread_id) {
@@ -91,6 +93,10 @@ impl Profiler {
         std::fs::write(report_path, profiler_data.build_report_string()).unwrap();
     }
 
+    pub fn reset_stats(&self) {
+        self.events_sender.send(ProfilerEvent::ResetStats).unwrap();
+    }
+
     fn new() -> Profiler {
         let (events_sender, events_receiver) = flume::unbounded();
         Profiler {
@@ -125,6 +131,8 @@ impl Profiler {
     }
 
     pub fn shutdown(&self, _report_path: &str, _profiler_data: &mut ProfilerData) {}
+
+    pub fn reset_stats(&self) {}
 
     fn new() -> Profiler {
         Profiler

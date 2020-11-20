@@ -95,4 +95,10 @@ impl ProfilerData {
             self.blocks_stack.get_unchecked_mut(thread_id_value).pop()
         }
     }
+
+    pub(crate) fn reset_stats(&mut self) {
+        for (_, child) in self.main_block.children.iter_mut() {
+            child.reset_stats();
+        }
+    }
 }
