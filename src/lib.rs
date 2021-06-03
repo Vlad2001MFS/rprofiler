@@ -62,13 +62,13 @@
 extern crate flume;
 
 pub use profiler::{ Profiler, PROFILER, ProfilerBlockGuard };
+pub use profiler_data::ProfilerData;
 
 mod profiler;
 mod block_stat;
 mod profiler_data;
 
 use block_stat::*;
-use profiler_data::*;
 
 #[cfg(not(feature = "disable_profiling"))]
 #[macro_export]

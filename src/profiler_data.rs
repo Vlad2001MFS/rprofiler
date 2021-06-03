@@ -59,7 +59,10 @@ impl ProfilerData {
         report += "<table>\n";
         report += "<thead><th>Block name</th><th>Global percents</th><th>Relative to parent percents</th><th>Average time</th></thead>\n";
 
-        self.main_block.build_report().build_string(&mut report);
+        //self.main_block.build_report().build_string(&mut report);
+        if let Some(mut main_report) = self.main_block.build_report() {
+            main_report.build_string(&mut report);
+        }
 
         report += "</table>\n";
 

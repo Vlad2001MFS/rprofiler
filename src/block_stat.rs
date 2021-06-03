@@ -57,7 +57,7 @@ impl BlockStat {
         }
     }
 
-    pub fn build_report(&self) -> BlockStatReport {
+    pub fn build_report(&self) -> Option<BlockStatReport> {
         self.build_report_recurse(self.total_time, self.total_time, self.total_time, self.total_time)
     }
 
@@ -70,53 +70,56 @@ impl BlockStat {
         }
     }
 
-    fn build_report_recurse(&self, total_global_time: Duration, avg_global_time: Duration, total_parent_time: Duration, _avg_parent_time: Duration) -> BlockStatReport {
-        let avg_time = match self.measure_count > 0 {
-            true => self.total_time / self.measure_count,
-            false => self.total_time,
-        };
+    fn build_report_recurse(&self, total_global_time: Duration, avg_global_time: Duration, total_parent_time: Duration, _avg_parent_time: Duration) -> Option<BlockStatReport> {
+        if self.measure_count > 0 {
+            let avg_time = self.total_time / self.measure_count;
 
-        BlockStatReport {
-            name: {
-                let mut name = String::with_capacity(self.name.len());
-                let mut name_parts_iter = self.name.split("::");
-                while let Some(first_name_part) = name_parts_iter.next() {
-                    match name_parts_iter.clone().next() {
-                        Some(second_name_part) => {
-                            let first_name_part_simplified = first_name_part.to_lowercase().replace("_", "");
-                            let second_name_part_simplified = second_name_part.to_lowercase().replace("_", "");
+            Some(BlockStatReport {
+                name: {
+                    let mut name = String::with_capacity(self.name.len());
+                    let mut name_parts_iter = self.name.split("::");
+                    while let Some(first_name_part) = name_parts_iter.next() {
+                        match name_parts_iter.clone().next() {
+                            Some(second_name_part) => {
+                                let first_name_part_simplified = first_name_part.to_lowercase().replace("_", "");
+                                let second_name_part_simplified = second_name_part.to_lowercase().replace("_", "");
 
-                            match first_name_part_simplified == second_name_part_simplified {
-                                true => {
-                                    name += "::";
-                                    name += second_name_part;
-                                    name_parts_iter.next();
-                                }
-                                false => {
-                                    name += "::";
-                                    name += first_name_part;
+                                match first_name_part_simplified == second_name_part_simplified {
+                                    true => {
+                                        name += "::";
+                                        name += second_name_part;
+                                        name_parts_iter.next();
+                                    }
+                                    false => {
+                                        name += "::";
+                                        name += first_name_part;
+                                    }
                                 }
                             }
-                        }
-                        None => {
-                            name += "::";
-                            name += first_name_part;
+                            None => {
+                                name += "::";
+                                name += first_name_part;
+                            }
                         }
                     }
-                }
 
-                name.strip_prefix("::").map(|a| a.to_owned()).unwrap_or(name)
-            },
-            avg_time,
-            global_percents: (self.total_time.as_secs_f32() / total_global_time.as_secs_f32())*100.0,
-            relative_parent_percents: (self.total_time.as_secs_f32() / total_parent_time.as_secs_f32())*100.0,
-            children: {
-                let total_parent_time: Duration = self.total_time;
-                let avg_parent_time: Duration = avg_time;
-                self.children.iter().map(|(_, stat)|
-                    stat.build_report_recurse(total_global_time, avg_global_time, total_parent_time, avg_parent_time)
-                ).collect()
-            },
+                    name.strip_prefix("::").map(|a| a.to_owned()).unwrap_or(name)
+                },
+                avg_time,
+                global_percents: (self.total_time.as_secs_f32() / total_global_time.as_secs_f32()) * 100.0,
+                relative_parent_percents: (self.total_time.as_secs_f32() / total_parent_time.as_secs_f32()) * 100.0,
+                children: {
+                    let total_parent_time: Duration = self.total_time;
+                    let avg_parent_time: Duration = avg_time;
+                    self.children.iter()
+                        .map(|(_, stat)| stat.build_report_recurse(total_global_time, avg_global_time, total_parent_time, avg_parent_time))
+                        .flatten()
+                        .collect()
+                },
+            })
+        }
+        else {
+            None
         }
     }
 }
